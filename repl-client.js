@@ -39,7 +39,7 @@ var ReplClient = function (url) {
         } catch (e) {
             error = e;
         }
-        if (result) {
+        if (!error) {
             props = examine(result);
         } else {
             props = examine(error);
@@ -63,7 +63,7 @@ var ReplClient = function (url) {
                 break;
             case "function":
                 props.name = x.name;
-                props.source = x.toString();
+                if (x.toString) { props.source = x.toString(); }
                 break;
             case "object":
                 props = examineObject(x);
@@ -77,7 +77,9 @@ var ReplClient = function (url) {
     var examineObject = function (x) {
         var props = {};
         props.type = "object";
-        if (x instanceof Array) {
+        if (x === null) {
+            props.value = x;
+        } else if (x instanceof Array) {
             props.constructor = "Array";
             props.value = x;
         } else if (x instanceof Error) {
