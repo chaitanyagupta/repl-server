@@ -1,13 +1,30 @@
 var ReplClient = function (url) {
     var abort = false;
+    var isTitanium = (typeof Titanium !== "undefined");
+    var log;
+
+    if (isTitanium) {
+        log = function (msg) {
+            Ti.API.log('log', msg);
+        };
+    } else {
+        log = function (msg) {
+            console.log(msg);
+        };
+    }
 
     var httpRequest = function (result) {
-        var req = new XMLHttpRequest();
+        var req;
+        if (isTitanium) {
+            req = Titanium.Network.createHTTPClient();
+        } else {
+            req = new XMLHttpRequest();
+        }
         req.open('GET', url + '?result=' + encodeURIComponent(result), true);
         req.onreadystatechange = function (evt) {
             if (req.readyState === 4) {
                 if (req.status === 200) {
-                    console.log("To evaluate: ", req.responseText);
+                    log("To evaluate: " + req.responseText);
                     evalRequest(req.responseText);
                 }
             }
