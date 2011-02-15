@@ -1,7 +1,8 @@
 (cl:defpackage #:repl-server
   (:use #:cl #:hunchentoot)
   (:export #:start-server
-           #:stop-server)
+           #:stop-server
+           #:start-repl)
   (:shadow #:session #:*session*))
 
 (cl:in-package #:repl-server)
@@ -100,7 +101,7 @@
                    (setf (eval-src) nil
                          (result) nil)))))))
 
-(defun eval-loop ()
+(defun start-repl ()
   (loop
      (princ "REPL> ")
      (let ((to-eval (read-line)))
