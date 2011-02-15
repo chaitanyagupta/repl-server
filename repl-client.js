@@ -1,12 +1,15 @@
 var ReplClient = function (url) {
     var self = this;
     var abort = false;
-    var getHttpRequest, log;
+    var getHttpRequest, log, warn;
     var isTitanium = (typeof Titanium !== "undefined");
 
     if (isTitanium) {
         log = function (msg) {
-            Ti.API.log('log', msg);
+            Ti.API.log('LOG', msg);
+        };
+        warn = function (msg) {
+            Ti.API.warn(msg);
         };
         getHttpRequest = function () {
             return Titanium.Network.createHTTPClient();
@@ -14,6 +17,9 @@ var ReplClient = function (url) {
     } else {
         log = function (msg) {
             console.log(msg);
+        };
+        warn = function (msg) {
+            console.warn(msg);
         };
         getHttpRequest = function () {
             return new XMLHttpRequest();
@@ -26,7 +32,7 @@ var ReplClient = function (url) {
         req.onreadystatechange = function (evt) {
             if (req.readyState === 4) {
                 if (req.status === 200) {
-                    log("response text is", req.responseText);
+                    log('response text is: ' + req.responseText);
                     var response = JSON.parse(req.responseText);
                     self.sid = response.sid;
                     self.rid = Math.floor(Math.random() * 10000000);
@@ -46,13 +52,19 @@ var ReplClient = function (url) {
 
     var sendResult = function (result) {
         var req = getHttpRequest();
+        var done = false;
         req.open('POST', url + '/' + self.sid + '/eval', true);
         req.onreadystatechange = function (evt) {
             if (req.readyState === 4) {
                 if (req.status === 200) {
-                    var response = JSON.parse(req.responseText);
-                    log('To evaluate: ' + response.query);
-                    evalRequest(response.query);
+                    if (!done) {
+                        var response = JSON.parse(req.responseText);
+                        log('To evaluate: ' + typeof response.query + ': ' + response.query);
+                        evalRequest(response.query);
+                        done = true;
+                    } else {
+                        warn('Already done with this request: ' + result);
+                    }
                 }
             }
         };
