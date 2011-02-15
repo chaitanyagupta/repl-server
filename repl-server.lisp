@@ -7,6 +7,19 @@
 
 (cl:in-package #:repl-server)
 
+;;; Utils
+
+(defmacro if-let ((var test) then &optional else)
+  `(let ((,var ,test))
+     (if ,var
+         ,then
+         ,else)))
+
+(defmacro when-let ((var test) &body body)
+  `(let ((,var ,test))
+     (when ,var
+       ,@body)))
+
 (defvar *sessions* (make-hash-table))
 (defvar *sessions-lock* (bt:make-lock))
 
@@ -105,22 +118,42 @@
   (loop
      (princ "REPL> ")
      (let ((to-eval (read-line)))
-       (when (string-equal to-eval ";quit")
+       (when (string-equal to-eval "//quit")
          (return))
        (let* ((response (json:decode-json-from-string (eval-string to-eval)))
-              (constructor (dot response :constructor))
-              (value (dot response :value)))
-         (if (and (dot response :error)
-                  (dot response :thrown))
-             (format t "ERROR! [~A] ~A~%" (dot response :constructor) (dot response :error))
-             (progn
-               (format t "<~A>" (dot response :type))
+              (type (dot response :type))
+              (value (dot response :value))
+              (constructor (dot response :constructor)))
+         (cond
+           ((string-equal type "undefined")
+            (princ "undefined"))
+           ((string-equal type "boolean")
+            (if value (princ "true") (princ "false")))
+           ((string-equal type "number")
+            (princ value))
+           ((string-equal type "string")
+            (prin1 value))
+           ((string-equal type "function")
+            (princ "<function>")
+            (when-let (name (dot response :name))
+              (format t " ~A" name))
+            (when-let (source (dot response :source))
+              (terpri)
+              (princ source)))
+           ((string-equal type "object")
+            (cond
+              ((and (dot response :error) (dot response :thrown))
+               (format t "ERROR! [~A] ~A" constructor (dot response :error)))
+              ((and (assoc :value response) (null (dot response :value)))
+               (princ "null"))
+              ((string-equal constructor "RegExp")
+               (princ value))
+              (t
+               (princ "<object>")
                (when constructor
-                 (format t "/[~A]" constructor))
-               (terpri)
-               (when value
-                 (json:encode-json value)
-                 (terpri))))))))
+                (format t "/[~A]" constructor)))))
+           (t (warn "Unrecognized object:~%~S" response)))
+         (terpri)))))
 
 (defun dot (object key &rest more-keys)
   (let ((value (cdr (assoc key object))))
