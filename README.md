@@ -58,11 +58,12 @@ Once you have the CL REPL, load repl-server with this command:
 
     (ql:quickload :repl-server)
 
-The first time you this, Quicklisp will ask your permission to
+The first time you do this, Quicklisp will ask your permission to
 download various Common Lisp libraries which are required to run
 repl-server.
 
-Once the required libraries are downloaded, you start the HTTP server:
+Once the required libraries are downloaded, and the repl-server source
+code is loaded, you start the HTTP server:
 
     (repl-server:start-server)
 
