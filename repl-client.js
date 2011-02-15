@@ -125,8 +125,8 @@ var ReplClient = function (url) {
             props.constructor = "Array";
             props.value = x;
         } else if (x instanceof Error) {
-            props.constructor = "Error";
-            props.value = x;
+            props.constructor = x.constructor && x.constructor.name;
+            props.error = x;
         } else if (x.constructor && x.constructor.name) {
             props.constructor = x.constructor.name;
         }
