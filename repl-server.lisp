@@ -117,6 +117,7 @@
 (defun start-repl ()
   (loop
      (princ "REPL> ")
+     (force-output)
      (let ((to-eval (read-line)))
        (when (string-equal to-eval "//quit")
          (return))
