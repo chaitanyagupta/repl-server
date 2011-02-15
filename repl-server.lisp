@@ -10,6 +10,7 @@
 (defvar *sessions-lock* (bt:make-lock))
 
 (defvar *session*)
+(defvar *current-session*)
 
 (defstruct (session (:conc-name %session-))
   (sid (random 1000000000) :read-only t)
@@ -87,7 +88,7 @@
   (unless (eql (request-method*) :options)
     (call-next-method)))
 
-(defun eval-string (string *session*)
+(defun eval-string (string &optional (*session* *current-session*))
   (bt:with-lock-held ((session-lock))
     (setf (eval-src) string)
     (bt:condition-notify (session-condition-var)))
@@ -105,16 +106,20 @@
      (let ((to-eval (read-line)))
        (when (string-equal to-eval ";quit")
          (return))
-       (let* ((result (eval-string to-eval))
-              (constructor (dot result :constructor))
-              (value (dot result :value)))
-         (format t "<~A>" (dot result :type))
-         (when constructor
-           (format t "/[~A]" constructor))
-         (terpri)
-         (when value
-           (json:encode-json value)
-           (terpri))))))
+       (let* ((response (json:decode-json-from-string (eval-string to-eval)))
+              (constructor (dot response :constructor))
+              (value (dot response :value)))
+         (if (and (dot response :error)
+                  (dot response :thrown))
+             (format t "ERROR! [~A] ~A~%" (dot response :constructor) (dot response :error))
+             (progn
+               (format t "<~A>" (dot response :type))
+               (when constructor
+                 (format t "/[~A]" constructor))
+               (terpri)
+               (when value
+                 (json:encode-json value)
+                 (terpri))))))))
 
 (defun dot (object key &rest more-keys)
   (let ((value (cdr (assoc key object))))
