@@ -121,6 +121,9 @@ var ReplClient = function (url) {
         props.type = "object";
         if (x === null) {
             props.value = x;
+        } else if (x instanceof RegExp) {
+            props.constructor = "RegExp";
+            props.value = x.toString();
         } else if (x instanceof Array) {
             props.constructor = "Array";
             props.value = x;
