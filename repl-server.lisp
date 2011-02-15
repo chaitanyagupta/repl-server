@@ -37,7 +37,8 @@
 (defun new-session ()
   (let ((session (make-session)))
     (bt:with-lock-held (*sessions-lock*)
-      (setf (gethash (session-sid session) *sessions*) session))))
+      (setf (gethash (sid session) *sessions*) session
+            *current-session* session))))
 
 (defun get-session ()
   (let* ((sid (parse-integer (second (cl-ppcre:split "/" (request-uri*)))))
@@ -52,13 +53,13 @@
     ()
   (let ((session (new-session)))
     (setf (content-type*) "application/json")
-    (json:encode-json-to-string `((:sid . ,(session-sid session))))))
+    (json:encode-json-to-string `((:sid . ,(sid session))))))
 
 (define-easy-handler (stop-handler :uri (lambda (request) (cl-ppcre:scan "^/.*/stop$" (request-uri* request))))
     ()
   (let ((session (get-session)))
     (bt:with-lock-held (*sessions-lock*)
-      (remhash (session-sid session) *sessions*))
+      (remhash (sid session) *sessions*))
     nil))
 
 (define-easy-handler (eval-handler :uri (lambda (request) (cl-ppcre:scan "^/.*/eval$" (request-uri* request))))
