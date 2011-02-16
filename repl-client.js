@@ -1,3 +1,6 @@
+var _, __, ___;
+var _$, _$$, _$$$;
+
 var ReplClient = function (url) {
     var self = this;
     var abort = false;
@@ -76,11 +79,19 @@ var ReplClient = function (url) {
 
     var evalRequest = function (string) {
         var result, error, props;
+        var last = _;
         try {
             result = eval(string);
+            _ = result;
         } catch (e) {
             error = e;
+            _ = undefined;
         }
+        _$$$ = _$$;
+        _$$ = _$;
+        _$ = string;
+        ___ = __;
+        __ = last;
         if (!error) {
             props = examine(result);
         } else {
