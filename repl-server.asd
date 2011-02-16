@@ -1,3 +1,5 @@
 (asdf:defsystem #:repl-server
   :depends-on (:hunchentoot :bordeaux-threads :cl-json)
-  :components ((:file "repl-server")))
+  :serial t
+  :components ((:file "termcolor")
+               (:file "repl-server")))

@@ -114,20 +114,43 @@
                    (setf (eval-src) nil
                          (result) nil)))))))
 
-(defun start-repl ()
+(defvar *color-output*)
+
+(defun fg (name)
+  (termcolor:fg name :print *color-output*))
+
+(defun bg (name)
+  (termcolor:bg name :print *color-output*))
+
+(defun style (name)
+  (termcolor:style name :print *color-output*))
+
+(defun reset ()
+  (termcolor:reset :print *color-output*))
+
+(defun start-repl (&key
+                   ((:color-output *color-output*) nil)
+                   exit-on-finish)
   (loop
+     (style :bright)
      (princ "REPL> ")
+     (reset)
      (force-output)
      (let ((to-eval (read-line)))
        (when (string-equal to-eval "//quit")
-         (return))
+         (if exit-on-finish
+             #+sbcl (sb-ext:quit)
+             #-sbcl (return)
+             (return)))
        (let* ((response (json:decode-json-from-string (eval-string to-eval)))
               (type (dot response :type))
               (value (dot response :value))
               (constructor (dot response :constructor)))
          (cond
            ((string-equal type "undefined")
-            (princ "undefined"))
+            (style :dim)
+            (princ "undefined")
+            (reset))
            ((string-equal type "boolean")
             (if value (princ "true") (princ "false")))
            ((string-equal type "number")
@@ -144,7 +167,9 @@
            ((string-equal type "object")
             (cond
               ((and (dot response :error) (dot response :thrown))
-               (format t "ERROR! [~A] ~A" constructor (dot response :error)))
+               (fg :red)
+               (format t "ERROR! [~A] ~A" constructor (dot response :error :message))
+               (reset))
               ((and (assoc :value response) (null (dot response :value)))
                (princ "null"))
               ((string-equal constructor "RegExp")
