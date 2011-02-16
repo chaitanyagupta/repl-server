@@ -105,48 +105,47 @@ var ReplClient = function (url) {
 
     var examine = function (x) {
         var props = {};
-        props.type = typeof x;
-        switch (props.type) {
-            case "undefined":
-                break;
-            case "number":
-            case "string":
-            case "boolean":
+        if (typeof x === "undefined") {
+            props.type = "Undefined";
+        } else if (x === null) {
+            props.type = "Null";
+        } else if (typeof x === "number") {
+            props.type = "Number";
+            if (!isNaN(x) && isFinite(x)) {
                 props.value = x;
-                break;
-            case "function":
-                props.name = x.name;
-                if (x.toString) { props.source = x.toString(); }
-                break;
-            case "object":
-                props = examineObject(x);
-                break;
-            default:
-                props.value = x;
-        }
-        return props;
-    };
-
-    var examineObject = function (x) {
-        var props = {};
-        props.type = "object";
-        if (x === null) {
+            } else {
+                props.value = x.toString();
+            }
+        } else if (typeof x === "string") {
+            props.type = "String";
+            props.value = x;
+        } else if (typeof x === "boolean") {
+            props.type = "Boolean";
             props.value = x;
         } else if (x instanceof RegExp) {
-            props.constructor = "RegExp";
+            props.type = "RegExp";
             props.value = x.toString();
         } else if (x instanceof Array) {
-            props.constructor = "Array";
+            props.type = "Array";
             props.value = x;
         } else if (x instanceof Error) {
+            props.type = "Error";
             props.constructor = x.constructor && x.constructor.name;
-            props.error = x;
-        } else if (x.constructor && x.constructor.name) {
-            props.constructor = x.constructor.name;
+            props.error = x.toString();
+        } else if (typeof x === "function") {
+            props.type = "Function";
+            props.name = x.name;
+            if (x.toString) { props.source = x.toString(); }
+        } else if (typeof x === "object") {
+            props.type = "Object";
+            if (x.constructor && x.constructor.name) {
+                props.constructor = x.constructor.name;
+            }
+        } else {
+            props.type = "Unknown";
         }
         return props;
     };
-
 
     self.stop = stop;
 
