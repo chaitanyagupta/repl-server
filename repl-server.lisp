@@ -20,14 +20,17 @@
      (when ,var
        ,@body)))
 
-(defvar *sessions* (make-hash-table))
+(defvar *sessions* (make-hash-table :test #'equal))
 (defvar *sessions-lock* (bt:make-lock))
 
 (defvar *session*)
 (defvar *current-session*)
 
+(defun get-sid ()
+  (format nil "~A~A" (get-universal-time) (random 100000000000)))
+
 (defstruct (session (:conc-name %session-))
-  (sid (random 1000000000) :read-only t)
+  (sid (get-sid) :read-only t)
   (rid)
   (lock (bt:make-lock) :read-only t)
   (condition-var (bt:make-condition-variable) :read-only t)
@@ -55,8 +58,8 @@
       (setf (gethash (sid session) *sessions*) session
             *current-session* session))))
 
-(defun get-session ()
-  (let* ((sid (parse-integer (second (cl-ppcre:split "/" (request-uri*)))))
+(defun get-session (uri)
+  (let* ((sid (second (cl-ppcre:split "/" uri)))
          (session (bt:with-lock-held (*sessions-lock*)
                     (gethash sid *sessions*))))
     (unless session
@@ -72,14 +75,14 @@
 
 (define-easy-handler (stop-handler :uri (lambda (request) (cl-ppcre:scan "^/.*/stop$" (request-uri* request))))
     ()
-  (let ((session (get-session)))
+  (let ((session (get-session (request-uri*))))
     (bt:with-lock-held (*sessions-lock*)
       (remhash (sid session) *sessions*))
     nil))
 
 (define-easy-handler (eval-handler :uri (lambda (request) (cl-ppcre:scan "^/.*/eval$" (request-uri* request))))
     ()
-  (let* ((*session* (get-session))
+  (let* ((*session* (get-session (request-uri*)))
          (response-json (raw-post-data :force-text t))
          (response (json:decode-json-from-string response-json))
          (rid (dot response :rid))
