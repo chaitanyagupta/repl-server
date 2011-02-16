@@ -148,6 +148,9 @@
           #+sbcl (sb-ext:quit)
           #-sbcl (return)
           (throw 'done nil)))
+    (unless (boundp '*current-session*)
+      (warn "No client connected.")
+      (throw 'continue nil))
     (let* ((response-string (eval-string to-eval))
            (response (json:decode-json-from-string response-string))
            (type (dot response :type))
@@ -194,8 +197,9 @@
                    exit-on-finish)
   (catch 'done
     (loop
-       (with-simple-restart (repl-prompt "Ignore error and get REPL prompt.")
-         (rep *color-output* exit-on-finish)))))
+       (catch 'continue
+         (with-simple-restart (repl-prompt "Ignore error and get REPL prompt.")
+           (rep *color-output* exit-on-finish))))))
 
 (defun dot (object key &rest more-keys)
   (let ((value (cdr (assoc key object))))
