@@ -28,6 +28,8 @@
 (defvar *session*)
 (defvar *current-session*)
 
+(defvar *timeout* 120)
+
 (defun get-sid ()
   (format nil "~A~A" (get-universal-time) (random 100000000000)))
 
@@ -103,12 +105,15 @@
       (bt:with-lock-held ((session-lock))
         (setf (result) result)
         (bt:condition-notify (session-condition-var))))
-    (bt:with-lock-held ((session-lock))
-      (loop
-         (bt:condition-wait (session-condition-var) (session-lock))
-         (when (eval-src)
-           (setf (content-type*) "application/json")
-           (return (json:encode-json-to-string (list (cons :query (eval-src))))))))))
+    (setf (content-type*) "application/json")
+    (handler-case
+        (bt:with-timeout (*timeout*)
+          (bt:with-lock-held ((session-lock))
+            (loop
+               (bt:condition-wait (session-condition-var) (session-lock))
+               (when (eval-src)
+                 (return (json:encode-json-to-string (list (cons :query (eval-src)))))))))
+      (bt:timeout () (json:encode-json-to-string (list (cons :timeout t)))))))
 
 (defmethod handle-request :around ((acceptor acceptor) (request request))
   (setf (header-out :access-control-allow-origin) "*")

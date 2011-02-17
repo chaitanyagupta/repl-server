@@ -15,7 +15,9 @@ var ReplClient = function (url) {
             Ti.API.warn(msg);
         };
         getHttpRequest = function () {
-            return Titanium.Network.createHTTPClient();
+            return Titanium.Network.createHTTPClient({
+                timeout: 130*1000
+            });
         };
     } else {
         log = function (msg) {
@@ -65,7 +67,11 @@ var ReplClient = function (url) {
                     if (!done) {
                         var response = JSON.parse(req.responseText);
                         log('To evaluate: ' + typeof response.query + ': ' + response.query);
-                        evalRequest(response.query);
+                        if (response.query) {
+                            evalRequest(response.query);
+                        } else {
+                            sendResult(null);
+                        }
                         done = true;
                     } else {
                         warn('Already done with this request: ' + result);
