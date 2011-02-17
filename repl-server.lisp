@@ -20,6 +20,8 @@
      (when ,var
        ,@body)))
 
+;;; Server
+
 (defvar *sessions* (make-hash-table :test #'equal))
 (defvar *sessions-lock* (bt:make-lock))
 
@@ -113,6 +115,16 @@
   (setf (header-out :access-control-allow-headers) (header-in* :access-control-request-headers))
   (unless (eql (request-method*) :options)
     (call-next-method)))
+
+(defvar *server*)
+
+(defun start-server (&optional (port 8000))
+  (setf *server* (start (make-instance 'acceptor :port port))))
+
+(defun stop-server ()
+  (stop *server*))
+
+;;; REPL
 
 (defun eval-string (string &optional (*session* *current-session*))
   (bt:with-lock-held ((session-lock))
@@ -225,11 +237,5 @@
         (apply #'dot value more-keys)
         value)))
 
-(defvar *server*)
 
-(defun start-server (&optional (port 8000))
-  (setf *server* (start (make-instance 'acceptor :port port))))
-
-(defun stop-server ()
-  (stop *server*))
 
