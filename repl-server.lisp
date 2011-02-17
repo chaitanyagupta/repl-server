@@ -108,12 +108,6 @@
     (call-next-method)))
 
 (defun eval-string (string &optional (*session* *current-session*))
-  ;; Automatic semi-colon insertion, since eval() borks without the
-  ;; semi-colon in Titanium Mobile (iOS)
-  (when (and (not (zerop (length string)))
-             (not (find #\Newline string))
-             (not (char= (char string (1- (length string))) #\;)))
-    (setf string (format nil "~A;" string)))
   (bt:with-lock-held ((session-lock))
     (setf (eval-src) string)
     (bt:condition-notify (session-condition-var)))
