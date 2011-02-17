@@ -167,6 +167,130 @@
   (with-repl-stream-lock
     (apply #'format t fmt args)))
 
+(define-condition syntax-error (error)
+  ((message :reader syntax-error-message
+            :initarg :message))
+  (:report (lambda (condition stream)
+             (write-string (syntax-error-message condition) stream))))
+
+(defun syntax-error (fmt &rest args)
+  (error 'syntax-error :message (apply #'format nil fmt args)))
+
+(defparameter *string-delimiters*
+  '(#\" #\' #\/))
+
+(defparameter *syntax-delimiter-pairs*
+  '((#\( . #\))
+    (#\{ . #\})
+    (#\[ . #\])))
+
+(defparameter *block-delimiter-pair*
+  '(#\{ . #\}))
+
+(defparameter *terminator*
+  #\;)
+
+(defparameter *escape-char*
+  #\\)
+
+(defparameter *whitespace-chars*
+  '(#\Space #\Tab #\Newline))
+
+(defun string-delimiter-p (char)
+  (member char *string-delimiters*))
+
+(defun syntax-delimiter-start-p (char)
+  (member char (mapcar #'car *syntax-delimiter-pairs*)))
+
+(defun syntax-delimiter-end-p (char)
+  (member char (mapcar #'cdr *syntax-delimiter-pairs*)))
+
+(defun syntax-delimiter-complement (char)
+  (cond
+    ((syntax-delimiter-start-p char)
+     (cdr (assoc char *syntax-delimiter-pairs*)))
+    ((syntax-delimiter-end-p char)
+     (car (rassoc char *syntax-delimiter-pairs*)))
+    (t nil)))
+
+(defun block-delimiter-start-p (char)
+  (eql char (car *block-delimiter-pair*)))
+
+(defun block-delimiter-end-p (char)
+  (eql char (cdr *block-delimiter-pair*)))
+
+(defun terminatorp (char)
+  (eql char *terminator*))
+
+(defun escape-char-p (char)
+  (eql char *escape-char*))
+
+(defun whitespacep (char)
+  (member char *whitespace-chars*))
+
+(defun read-command (&optional stream)
+  (let* ((first-char (read-char stream nil nil))
+         (second-char (and (eql first-char #\/)
+                           (peek-char nil stream nil nil))))
+    (if (and (eql first-char #\/) (eql first-char second-char))
+        (with-output-to-string (out)
+          (write-char first-char out)
+          (write-string (read-line stream) out))
+        (unread-char first-char stream))))
+
+(defun read-javascript (&optional stream)
+  (let ((states '())
+        (current nil)
+        (last-nw-char nil)) ; last-non-whitespace-char
+    (flet ((push-state (state &optional char)
+             (setf current (cons state char))
+             (push current states))
+           (pop-state ()
+             (prog1 (pop states)
+               (setf current (car states))))
+           (current-state ()
+             (car current))
+           (current-delimiter ()
+             (cdr current))
+           (level ()
+             (1- (length states))))
+      (push-state :syntax)
+      (with-output-to-string (out)
+        (loop
+           (let ((char (read-char stream nil nil)))
+             (cond
+               ((eql char #\Newline)
+                (when (and (eql (current-state) :syntax) (zerop (level)))
+                  (if (or (terminatorp last-nw-char) (block-delimiter-end-p last-nw-char))
+                      (return)
+                      (syntax-error "Missing semicolon."))))
+               ((escape-char-p char)
+                (if (not (eql (current-state) :escape))
+                    (push-state :escape)
+                    (pop-state)))
+               ((string-delimiter-p char)
+                (case (current-state)
+                  (:escape (pop-state))
+                  (:syntax (push-state :string char))
+                  (:string (when (eql (current-delimiter) char)
+                             (pop-state)))))
+               ((syntax-delimiter-start-p char)
+                (case (current-state)
+                  (:escape (pop-state))
+                  (:syntax (push-state :syntax char))))
+               ((syntax-delimiter-end-p char)
+                (case (current-state)
+                  (:escape (pop-state))
+                  (:syntax (if (eql (current-delimiter) (syntax-delimiter-complement char))
+                               (pop-state)
+                               (syntax-error "Invalid token: ~A" char)))))
+               (t
+                (case (current-state)
+                  (:escape (pop-state)))))
+             (unless (whitespacep char)
+               (setf last-nw-char char))
+             (write-char char out)))))))
+
 (defun prompt ()
   (with-repl-stream-lock
     (style :bright)
@@ -176,7 +300,12 @@
 
 (defun rep (*color-output* exit-on-finish)
   (prompt)
-  (let ((to-eval (read-line)))
+  (let ((to-eval (handler-case (or (read-command) (read-javascript))
+                   (syntax-error (c)
+                     (with-repl-stream-lock
+                       (princ c)
+                       (terpri))
+                     (throw 'continue nil)))))
     (when (string-equal to-eval "//quit")
       (if exit-on-finish
           #+sbcl (sb-ext:quit)
