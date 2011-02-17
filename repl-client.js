@@ -151,3 +151,5 @@ var ReplClient = function (url) {
 
     start();
 };
+
+ReplClient.version = "0.1.1";
