@@ -34,8 +34,8 @@ Common Lisp
 Setting up a Common Lisp environment for repl-server requires three
 things:
 
-1. A CL compiler. e.g. [SBCL](http://www.sbcl.org/) or [Clozure
-   CL](http://ccl.clozure.com/).
+1. A CL compiler. e.g. [SBCL](http://www.sbcl.org/) (Linux) or
+   [Clozure CL](http://ccl.clozure.com/) (OS X or Windows).
 
 2. [Quicklisp](http://www.quicklisp.org/beta/) is required to download
    Common Lisp libraries.
