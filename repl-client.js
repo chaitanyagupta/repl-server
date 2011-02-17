@@ -43,7 +43,9 @@ var ReplClient = function (url) {
                 }
             }
         };
-        req.send();
+        req.send(JSON.stringify({
+            version: ReplClient.version
+        }));
     };
 
     var stop = function () {
