@@ -174,13 +174,17 @@
     (reset)
     (force-output)))
 
+(defun quit ()
+  #+sbcl (sb-ext:quit)
+  #+ccl (ccl:quit)
+  #-(or sbcl ccl) (error "Don't know how to quit!"))
+
 (defun rep (*color-output* exit-on-finish)
   (prompt)
   (let ((to-eval (read-line)))
     (when (string-equal to-eval "//quit")
       (if exit-on-finish
-          #+sbcl (sb-ext:quit)
-          #-sbcl (return)
+          (quit)
           (throw 'done nil)))
     (unless (boundp '*current-session*)
       (warn "No client connected.")
