@@ -66,10 +66,11 @@ var ReplClient = function (url) {
                 if (req.status === 200) {
                     if (!done) {
                         var response = JSON.parse(req.responseText);
-                        log('To evaluate: ' + typeof response.query + ': ' + response.query);
-                        if (response.query) {
+                        if (typeof response.query !== "undefined") {
+                            log('To evaluate: ' + response.query);
                             evalRequest(response.query);
                         } else {
+                            log('No query received');
                             sendResult(null);
                         }
                         done = true;
