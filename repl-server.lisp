@@ -37,7 +37,8 @@
   (sid (get-sid) :read-only t)
   (rid)
   (lock (bt:make-lock) :read-only t)
-  (condition-var (bt:make-condition-variable) :read-only t)
+  (eval-semaphore (bt:make-condition-variable) :read-only t)
+  (result-semaphore (bt:make-condition-variable) :read-only t)
   (eval-src nil)
   (result nil))
 
@@ -52,7 +53,8 @@
 (def-session-property sid %session-sid :read-only t)
 (def-session-property rid %session-rid)
 (def-session-property session-lock %session-lock :read-only t)
-(def-session-property session-condition-var %session-condition-var :read-only t)
+(def-session-property eval-semaphore %session-eval-semaphore :read-only t)
+(def-session-property result-semaphore %session-result-semaphore :read-only t)
 (def-session-property eval-src %session-eval-src)
 (def-session-property result %session-result)
 
@@ -104,13 +106,13 @@
     (when result
       (bt:with-lock-held ((session-lock))
         (setf (result) result)
-        (bt:condition-notify (session-condition-var))))
+        (bt:condition-notify (result-semaphore))))
     (setf (content-type*) "application/json")
     (handler-case
         (bt:with-timeout (*timeout*)
           (bt:with-lock-held ((session-lock))
             (loop
-               (bt:condition-wait (session-condition-var) (session-lock))
+               (bt:condition-wait (eval-semaphore) (session-lock))
                (when (eval-src)
                  (return (json:encode-json-to-string (list (cons :query (eval-src)))))))))
       (bt:timeout () (json:encode-json-to-string (list (cons :timeout t)))))))
@@ -134,14 +136,14 @@
 (defun eval-string (string &optional (*session* *current-session*))
   (bt:with-lock-held ((session-lock))
     (setf (eval-src) string)
-    (bt:condition-notify (session-condition-var)))
+    (bt:condition-notify (eval-semaphore)))
   (bt:with-lock-held ((session-lock))
     (loop
-       (bt:condition-wait (session-condition-var) (session-lock))
-       (when (result)
-         (return (prog1 (result)
-                   (setf (eval-src) nil
-                         (result) nil)))))))
+       (bt:condition-wait (result-semaphore) (session-lock))
+       (when-let (result (result))
+         (setf (eval-src) nil
+               (result) nil)
+         (return result)))))
 
 (defvar *color-output*)
 
