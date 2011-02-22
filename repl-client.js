@@ -137,7 +137,8 @@ var ReplClient = function (url) {
         } else if (x instanceof Array) {
             props.type = "Array";
             props.value = x;
-        } else if (x instanceof Error) {
+        } else if ((x instanceof Error) ||
+                   (x instanceof DOMException)) {
             props.type = "Error";
             props.constructor = x.constructor && x.constructor.name;
             props.error = x.toString();
