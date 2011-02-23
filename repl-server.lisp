@@ -22,6 +22,8 @@
 
 ;;; Server
 
+(defvar *version* (asdf:component-version (asdf:find-system :repl-server)))
+
 (defvar *sessions* (make-hash-table :test #'equal))
 (defvar *sessions-lock* (bt:make-lock))
 
@@ -78,11 +80,10 @@
   (let* ((session (new-session))
          (response-json (raw-post-data :force-text t))
          (response (json:decode-json-from-string response-json))
-         (version (dot response :version))
-         (asdf-version (asdf:component-version (asdf:find-system :repl-server))))
-    (unless (string= version asdf-version)
+         (version (dot response :version)))
+    (unless (string= version *version*)
       (warn "Client version (~A) differs from server version (~A). The REPL may not work."
-            version asdf-version))
+            version *version*))
     (setf (content-type*) "application/json")
     (prog1
         (json:encode-json-to-string `((:sid . ,(sid session))))
