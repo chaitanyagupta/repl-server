@@ -82,12 +82,12 @@
          (response (json:decode-json-from-string response-json))
          (version (dot response :version)))
     (unless (string= version *version*)
-      (warn "Client version (~A) differs from server version (~A). The REPL may not work."
-            version *version*))
+      (notify :warn "Client version (~A) differs from server version (~A). The REPL may not work."
+              version *version*))
     (setf (content-type*) "application/json")
     (prog1
         (json:encode-json-to-string `((:sid . ,(sid session))))
-      (repl-stream-message "~&New client connected. sid: ~A~%" (sid session)))))
+      (notify :info "New client connected. sid: ~A" (sid session)))))
 
 (define-easy-handler (stop-handler :uri (lambda (request) (cl-ppcre:scan "^/.*/stop$" (request-uri* request))))
     ()
@@ -162,37 +162,51 @@
 (defun reset ()
   (termcolor:reset :print *color-output*))
 
+(defvar *repl-stream*)
 (defvar *repl-stream-lock* (bt:make-lock))
 
 (defmacro with-repl-stream-lock (&body body)
   `(bt:with-lock-held (*repl-stream-lock*)
      ,@body))
 
-(defun repl-stream-message (fmt &rest args)
-  (with-repl-stream-lock
-    (apply #'format t fmt args)))
+(defun notify (level fmt &rest args)
+  (let ((*standard-output* *repl-stream*))
+    (with-repl-stream-lock
+      (fresh-line)
+      (ecase level
+        (:info)
+        (:warn (fg :yellow))
+        (:error (fg :red)))
+      (apply #'format t fmt args)
+      (reset)
+      (terpri))))
 
 (defun prompt ()
-  (with-repl-stream-lock
-    (style :bright)
-    (princ "REPL> ")
-    (reset)
-    (force-output)))
+  (let ((*standard-output* *repl-stream*))
+    (with-repl-stream-lock
+      (style :bright)
+      (princ "REPL> ")
+      (reset)
+      (force-output))))
 
 (defun quit ()
   #+sbcl (sb-ext:quit)
   #+ccl (ccl:quit)
   #-(or sbcl ccl) (error "Don't know how to quit!"))
 
-(defun rep (*color-output* exit-on-finish)
+(defun rep (exit-on-finish &aux (*standard-output* (two-way-stream-output-stream *repl-stream*)))
   (prompt)
-  (let ((to-eval (read-line)))
+  (let ((to-eval (read-line *repl-stream*)))
     (when (string-equal to-eval "//quit")
       (if exit-on-finish
           (quit)
           (throw 'done nil)))
     (unless (boundp '*current-session*)
-      (warn "No client connected.")
+      (with-repl-stream-lock
+        (fg :yellow)
+        (princ "No client connected.")
+        (reset)
+        (terpri))
       (throw 'continue nil))
     (let* ((response-string (eval-string to-eval))
            (response (json:decode-json-from-string response-string))
@@ -233,17 +247,24 @@
            (princ "<object>")
            (when constructor
              (format t "/[~A]" constructor)))
-          (t (warn "Unrecognized object:~%~S" response-string)))
+          (t
+           (fg :red)
+           (format t "Unrecognized object:~%~S" response-string)
+           (reset)))
         (terpri)))))
 
 (defun start-repl (&key
-                   ((:color-output *color-output*) nil)
-                   exit-on-finish)
+                   color-output
+                   exit-on-finish
+                   (output-stream *standard-output*)
+                   (input-stream *standard-input*))
+  (setf *color-output* color-output)
+  (setf *repl-stream* (make-two-way-stream input-stream output-stream))
   (catch 'done
     (loop
        (catch 'continue
          (with-simple-restart (repl-prompt "Ignore error and get REPL prompt.")
-           (rep *color-output* exit-on-finish))))))
+           (rep exit-on-finish))))))
 
 (defun dot (object key &rest more-keys)
   (let ((value (cdr (assoc key object))))
