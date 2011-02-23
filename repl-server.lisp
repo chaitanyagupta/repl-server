@@ -20,6 +20,13 @@
      (when ,var
        ,@body)))
 
+(defun read-file (f)
+  (with-output-to-string (out)
+    (loop
+       for line = (read-line f nil)
+       while line
+       do (write-line line out))))
+
 ;;; Server
 
 (defvar *version* (asdf:component-version (asdf:find-system :repl-server)))
@@ -189,18 +196,57 @@
       (reset)
       (force-output))))
 
+(defvar *exit-on-finish*)
+
 (defun quit ()
   #+sbcl (sb-ext:quit)
   #+ccl (ccl:quit)
   #-(or sbcl ccl) (error "Don't know how to quit!"))
 
-(defun rep (exit-on-finish &aux (*standard-output* (two-way-stream-output-stream *repl-stream*)))
+(defvar *repl-commands* (make-hash-table :test #'equal))
+
+(defmacro define-repl-command (name args &body body)
+  `(setf (gethash ,name *repl-commands*) (lambda ,args ,@body)))
+
+(define-repl-command "quit" ()
+  (if *exit-on-finish*
+      (quit)
+      (throw 'done nil)))
+
+(define-repl-command "version" ()
+  (princ *version*)
+  (terpri))
+
+(define-repl-command "load" (file)
+  (with-open-file (f file :direction :input)
+    (eval-string (read-file f))))
+
+(defun rep (&aux (*standard-output* (two-way-stream-output-stream *repl-stream*)))
   (prompt)
   (let ((to-eval (read-line *repl-stream*)))
-    (when (string-equal to-eval "//quit")
-      (if exit-on-finish
-          (quit)
-          (throw 'done nil)))
+    (when (string-equal (subseq to-eval 0 (min 2 (length to-eval))) "//")
+      (with-input-from-string (in (subseq to-eval 2))
+        (flet ((till-next-whitespace ()
+                 (with-output-to-string (out)
+                   (loop
+                      for char = (read-char in nil)
+                      while char
+                      if (char= char #\Space)
+                      do (return)
+                      else do (write-char char out)))))
+          (let ((command (till-next-whitespace))
+                (args))
+            (loop
+               for char = (peek-char t in nil)
+               while char
+               if (char= char #\")
+               do (push (read in nil) args)
+               else if (char/= char #\Space)
+               do (push (till-next-whitespace) args))
+            (setf args (nreverse args))
+            (when-let (fn (gethash command *repl-commands*))
+              (apply fn args)))))
+      (throw 'continue nil))
     (unless (boundp '*current-session*)
       (with-repl-stream-lock
         (fg :yellow)
@@ -260,13 +306,14 @@
                    exit-on-finish
                    (output-stream *standard-output*)
                    (input-stream *standard-input*))
-  (setf *color-output* color-output)
-  (setf *repl-stream* (make-two-way-stream input-stream output-stream))
+  (setf *exit-on-finish* exit-on-finish
+        *color-output* color-output
+        *repl-stream* (make-two-way-stream input-stream output-stream))
   (catch 'done
     (loop
        (catch 'continue
          (with-simple-restart (repl-prompt "Ignore error and get REPL prompt.")
-           (rep exit-on-finish))))))
+           (rep))))))
 
 (defun dot (object key &rest more-keys)
   (let ((value (cdr (assoc key object))))
