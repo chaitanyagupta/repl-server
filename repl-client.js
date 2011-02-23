@@ -1,43 +1,46 @@
+var ReplClient = {};
+
+ReplClient.version = "0.2.0";
+
 var _, __, ___;
 var _$, _$$, _$$$;
 
-var ReplClient = function (url) {
+if (typeof Titanium !== "undefined") {
+    ReplClient.log = function (msg) {
+        Ti.API.log('LOG', msg);
+    };
+    ReplClient.warn = function (msg) {
+        Ti.API.warn(msg);
+    };
+    ReplClient.getHttpRequest = function () {
+        return Titanium.Network.createHTTPClient({
+            timeout: 130*1000
+        });
+    };
+} else {
+    ReplClient.log = function (msg) {
+        console.log(msg);
+    };
+    ReplClient.warn = function (msg) {
+        console.warn(msg);
+    };
+    ReplClient.getHttpRequest = function () {
+        return new XMLHttpRequest();
+    };
+}
+
+ReplClient.run = function (url) {
     var self = this;
     var abort = false;
-    var getHttpRequest, log, warn;
     var isTitanium = (typeof Titanium !== "undefined");
 
-    if (isTitanium) {
-        log = function (msg) {
-            Ti.API.log('LOG', msg);
-        };
-        warn = function (msg) {
-            Ti.API.warn(msg);
-        };
-        getHttpRequest = function () {
-            return Titanium.Network.createHTTPClient({
-                timeout: 130*1000
-            });
-        };
-    } else {
-        log = function (msg) {
-            console.log(msg);
-        };
-        warn = function (msg) {
-            console.warn(msg);
-        };
-        getHttpRequest = function () {
-            return new XMLHttpRequest();
-        };
-    }
-
     var start = function () {
-        var req = getHttpRequest();
+        var req = self.getHttpRequest();
         req.open('POST', url + '/start', true);
         req.onreadystatechange = function (evt) {
             if (req.readyState === 4) {
                 if (req.status === 200) {
-                    log('response text is: ' + req.responseText);
+                    self.log('response text is: ' + req.responseText);
                     var response = JSON.parse(req.responseText);
                     self.sid = response.sid;
                     self.rid = Math.floor(Math.random() * 10000000);
@@ -52,13 +55,13 @@ var ReplClient = function (url) {
 
     var stop = function () {
         abort = true;
-        var req = getHttpRequest();
+        var req = self.getHttpRequest();
         req.open('POST', url + '/' + self.sid + '/stop', true);
         req.send();
     };
 
     var sendResult = function (result) {
-        var req = getHttpRequest();
+        var req = self.getHttpRequest();
         var done = false;
         req.open('POST', url + '/' + self.sid + '/eval', true);
         req.onreadystatechange = function (evt) {
@@ -67,15 +70,15 @@ var ReplClient = function (url) {
                     if (!done) {
                         var response = JSON.parse(req.responseText);
                         if (typeof response.query !== "undefined") {
-                            log('To evaluate: ' + response.query);
+                            self.log('To evaluate: ' + response.query);
                             evalRequest(response.query);
                         } else {
-                            log('No query received');
+                            self.log('No query received');
                             sendResult(null);
                         }
                         done = true;
                     } else {
-                        warn('Already done with this request: ' + result);
+                        self.warn('Already done with this request: ' + result);
                     }
                 }
             }
@@ -161,5 +164,3 @@ var ReplClient = function (url) {
 
     start();
 };
-
-ReplClient.version = "0.2.0";
