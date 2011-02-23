@@ -92,7 +92,9 @@
     ()
   (let ((session (get-session (request-uri*))))
     (bt:with-lock-held (*sessions-lock*)
-      (remhash (sid session) *sessions*))
+      (remhash (sid session) *sessions*)
+      (when (eql *current-session* session)
+        (makunbound '*current-session*)))
     nil))
 
 (define-easy-handler (eval-handler :uri (lambda (request) (cl-ppcre:scan "^/.*/eval$" (request-uri* request))))
