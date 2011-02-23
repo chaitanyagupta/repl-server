@@ -229,6 +229,8 @@
            (prin1 value))
           ((string-equal type "RegExp")
            (princ value))
+          ((string-equal type "Array")
+           (json:encode-json value *standard-output*))
           ((string-equal type "Function")
            (princ "<function>")
            (when-let (name (dot response :name))
