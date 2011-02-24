@@ -142,8 +142,6 @@
 (defun stop-server ()
   (stop *server*))
 
-;;; REPL
-
 (defun eval-string (string &optional (*session* *current-session*))
   (bt:with-lock-held ((session-lock))
     (setf (eval-src) string)
@@ -155,6 +153,8 @@
          (setf (eval-src) nil
                (result) nil)
          (return result)))))
+
+;;; REPL
 
 (defvar *color-output*)
 
