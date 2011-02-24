@@ -221,31 +221,44 @@
   (with-open-file (f file :direction :input)
     (eval-string (read-file f))))
 
+(defun commandp (string)
+  (string-equal (subseq string 0 (min 2 (length string))) "//"))
+
+(defun parse-command (string)
+  (with-input-from-string (in (subseq string 2))
+    (flet ((till-next-whitespace ()
+             (with-output-to-string (out)
+               (loop
+                  for char = (read-char in nil)
+                  while char
+                  if (char= char #\Space)
+                  do (return)
+                  else do (write-char char out)))))
+      (let ((command (till-next-whitespace))
+            (args))
+        (loop
+           for char = (peek-char t in nil)
+           while char
+           if (char= char #\")
+           do (push (read in nil) args)
+           else if (char/= char #\Space)
+           do (push (till-next-whitespace) args))
+        (setf args (nreverse args))
+        (values command args)))))
+
 (defun rep (&aux (*standard-output* (two-way-stream-output-stream *repl-stream*)))
   (prompt)
   (let ((to-eval (read-line *repl-stream*)))
-    (when (string-equal (subseq to-eval 0 (min 2 (length to-eval))) "//")
-      (with-input-from-string (in (subseq to-eval 2))
-        (flet ((till-next-whitespace ()
-                 (with-output-to-string (out)
-                   (loop
-                      for char = (read-char in nil)
-                      while char
-                      if (char= char #\Space)
-                      do (return)
-                      else do (write-char char out)))))
-          (let ((command (till-next-whitespace))
-                (args))
-            (loop
-               for char = (peek-char t in nil)
-               while char
-               if (char= char #\")
-               do (push (read in nil) args)
-               else if (char/= char #\Space)
-               do (push (till-next-whitespace) args))
-            (setf args (nreverse args))
-            (when-let (fn (gethash command *repl-commands*))
-              (apply fn args)))))
+    (when (commandp to-eval)
+      (multiple-value-bind (command args)
+          (parse-command to-eval)
+        (if-let (fn (gethash command *repl-commands*))
+          (apply fn args)
+          (with-repl-stream-lock
+            (fg :yellow)
+            (princ "Invalid command.")
+            (reset)
+            (terpri))))
       (throw 'continue nil))
     (unless (boundp '*current-session*)
       (with-repl-stream-lock
