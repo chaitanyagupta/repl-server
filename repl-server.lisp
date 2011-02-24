@@ -2,7 +2,8 @@
   (:use #:cl #:hunchentoot)
   (:export #:start-server
            #:stop-server
-           #:start-repl)
+           #:start-repl
+           #:defcolor)
   (:shadow #:session #:*session*))
 
 (cl:in-package #:repl-server)
@@ -157,17 +158,30 @@
 
 (defvar *color-output*)
 
-(defun fg (name)
-  (termcolor:fg name :print *color-output*))
-
-(defun bg (name)
-  (termcolor:bg name :print *color-output*))
-
-(defun style (name)
-  (termcolor:style name :print *color-output*))
+(defun color (&key fg bg style)
+  (termcolor:color :fg fg :bg bg :style style :print *color-output*))
 
 (defun reset ()
   (termcolor:reset :print *color-output*))
+
+(defvar *colors* (make-hash-table))
+
+(defun defcolor (keyword &key fg bg style)
+  (setf (gethash keyword *colors*) (list :fg fg :bg bg :style style)))
+
+(defun apply-color (keyword)
+  (let ((args (gethash keyword *colors*)))
+    (if args
+        (apply #'color args)
+        (error "Unrecognized color keyword: ~A" keyword))))
+
+;;;; Default colors
+
+(defcolor :repl :style :bright)
+(defcolor :result :fg :reset)
+(defcolor :info :fg :reset)
+(defcolor :warn :fg :yellow)
+(defcolor :error :fg :red)
 
 (defvar *repl-stream*)
 (defvar *repl-stream-lock* (bt:make-lock))
@@ -181,9 +195,7 @@
     (with-repl-stream-lock
       (fresh-line)
       (ecase level
-        (:info)
-        (:warn (fg :yellow))
-        (:error (fg :red)))
+        ((:info :warn :error) (apply-color level)))
       (apply #'format t fmt args)
       (reset)
       (terpri))))
@@ -191,7 +203,7 @@
 (defun prompt ()
   (let ((*standard-output* *repl-stream*))
     (with-repl-stream-lock
-      (style :bright)
+      (apply-color :repl)
       (princ "REPL> ")
       (reset)
       (force-output))))
@@ -229,7 +241,7 @@
           (setf *default-pathname-defaults* new-pathname)
           (princ *default-pathname-defaults*))
         (progn
-          (fg :red)
+          (apply-color :error)
           (princ "Invalid directory."))))
   (terpri))
 
@@ -271,14 +283,14 @@
         (if-let (fn (gethash command *repl-commands*))
           (apply fn args)
           (with-repl-stream-lock
-            (fg :yellow)
+            (apply-color :error)
             (princ "Invalid command.")
             (reset)
             (terpri))))
       (throw 'continue nil))
     (unless (boundp '*current-session*)
       (with-repl-stream-lock
-        (fg :yellow)
+        (apply-color :warn)
         (princ "No client connected.")
         (reset)
         (terpri))
@@ -291,7 +303,6 @@
       (with-repl-stream-lock
         (cond
           ((string-equal type "Undefined")
-           (style :dim)
            (princ "undefined")
            (reset))
           ((string-equal type "Null")
@@ -316,7 +327,7 @@
           ((string-equal type "Error")
            (if (dot response :thrown)
                (progn
-                 (fg :red)
+                 (apply-color :error)
                  (format t "ERROR! Type: ~A~%~A" constructor (dot response :error))
                  (reset))
                (format t "<Error> Type: ~A~%~A" constructor (dot response :error))))
@@ -325,7 +336,7 @@
            (when constructor
              (format t "/[~A]" constructor)))
           (t
-           (fg :red)
+           (apply-color :error)
            (format t "Unrecognized object:~%~S" response-string)
            (reset)))
         (terpri)))))
