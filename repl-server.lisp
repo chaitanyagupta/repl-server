@@ -217,6 +217,22 @@
   (princ *version*)
   (terpri))
 
+(define-repl-command "pwd" ()
+  (princ (namestring (probe-file *default-pathname-defaults*)))
+  (terpri))
+
+(define-repl-command "cd" (dir)
+  (let ((new-pathname (probe-file (merge-pathnames (pathname dir)
+                                                   (probe-file *default-pathname-defaults*)))))
+    (if new-pathname
+        (progn
+          (setf *default-pathname-defaults* new-pathname)
+          (princ *default-pathname-defaults*))
+        (progn
+          (fg :red)
+          (princ "Invalid directory."))))
+  (terpri))
+
 (define-repl-command "load" (file)
   (with-open-file (f file :direction :input)
     (eval-string (read-file f))))
