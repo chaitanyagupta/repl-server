@@ -83,8 +83,8 @@ To use the javascript client, copy `repl-client.js` into your
 web/javascript application. After it is loaded, you can start the
 ReplClient by passing it the URL of your REPL server:
 
-    var client = new ReplClient('http://localhost:8000');
+    ReplClient.run('http://localhost:8000');
 
 To stop communicating with the REPL server, call `stop`:
 
-    client.stop();
+    ReplClient.stop();
