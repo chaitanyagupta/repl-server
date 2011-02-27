@@ -1,5 +1,5 @@
 (asdf:defsystem #:repl-server
-  :depends-on (:hunchentoot :bordeaux-threads :cl-json)
+  :depends-on (:hunchentoot :bordeaux-threads :cl-json :parse-js)
   :serial t
   :version "0.4.1"
   :components ((:file "termcolor")

@@ -274,9 +274,44 @@
         (setf args (nreverse args))
         (values command args)))))
 
+(defun read-js (stream)
+  (let ((string "")
+        (eof-line -1)
+        (eof-column))
+    (loop
+       (let ((line (read-line stream nil)))
+         (when (null line)
+           (return))
+         (setf string (format nil "~A~&~A" string line))
+         (incf eof-line)
+         (setf eof-column (length line))
+         (unless (eql (check-js string eof-line eof-column) :continue)
+           (return))))
+    string))
+
+(defun check-js (string eof-line eof-column)
+  (handler-bind ((parse-js:js-parse-error
+                  #'(lambda (c)
+                      ;; A couple of bugs in parse-js: 1) an internal symbol is
+                      ;; not exported, and 2) inconsistent line and column
+                      ;; number indexing by js-parse-error
+                      (let ((line (1- (parse-js:js-parse-error-line c)))
+                            (column (parse-js::js-parse-error-char c)))
+                        (when (and (= line eof-line) (= eof-column column))
+                          (return-from check-js :continue))))))
+    (parse-js:parse-js string :strict-semicolons t)))
+
 (defun rep (&aux (*standard-output* (two-way-stream-output-stream *repl-stream*)))
   (prompt)
-  (let ((to-eval (read-line *repl-stream*)))
+  (let ((to-eval (handler-case (read-js *repl-stream*)
+                   (parse-js:js-parse-error (c)
+                     ;; another fix for parse-js's inconsistent indexing
+                     (incf (slot-value c 'parse-js::char))
+                     (with-repl-stream-lock
+                       (apply-color :error)
+                       (format t "JS Parse Error: ~A" c)
+                       (reset)
+                       (terpri))))))
     (when (commandp to-eval)
       (multiple-value-bind (command args)
           (parse-command to-eval)
