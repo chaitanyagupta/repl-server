@@ -2,5 +2,8 @@
   :depends-on (:hunchentoot :bordeaux-threads :cl-json :parse-js)
   :serial t
   :version "0.4.1"
-  :components ((:file "termcolor")
-               (:file "repl-server")))
+  :components ((:module lib
+                        :components ((:file "termcolor")))
+               (:module src
+                        :components ((:file "package")
+                                     (:file "repl-server")))))
