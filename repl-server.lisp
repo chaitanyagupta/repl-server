@@ -276,7 +276,7 @@
 
 (defun read-js (stream)
   (let ((string "")
-        (eof-line -1)
+        (eof-line 0)
         (eof-column))
     (loop
        (let ((line (read-line stream nil)))
@@ -295,7 +295,7 @@
                       ;; A couple of bugs in parse-js: 1) an internal symbol is
                       ;; not exported, and 2) inconsistent line and column
                       ;; number indexing by js-parse-error
-                      (let ((line (1- (parse-js:js-parse-error-line c)))
+                      (let ((line (parse-js:js-parse-error-line c))
                             (column (parse-js::js-parse-error-char c)))
                         (when (and (= line eof-line) (= eof-column column))
                           (return-from check-js :continue))))))
@@ -305,8 +305,6 @@
   (prompt)
   (let ((to-eval (handler-case (read-js *repl-stream*)
                    (parse-js:js-parse-error (c)
-                     ;; another fix for parse-js's inconsistent indexing
-                     (incf (slot-value c 'parse-js::char))
                      (with-repl-stream-lock
                        (apply-color :error)
                        (format t "JS Parse Error: ~A" c)
