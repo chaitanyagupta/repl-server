@@ -1,5 +1,5 @@
 (cl:defpackage #:repl-server
-  (:use #:cl #:hunchentoot)
+  (:use #:cl #:hunchentoot #:trivial-gray-streams)
   (:export #:start-server
            #:stop-server
            #:start-repl
