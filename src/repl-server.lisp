@@ -284,9 +284,10 @@
 (defun check-js (string eof-line eof-column)
   (handler-bind ((parse-js:js-parse-error
                   #'(lambda (c)
-                      ;; A couple of bugs in parse-js: 1) an internal symbol is
-                      ;; not exported, and 2) inconsistent line and column
-                      ;; number indexing by js-parse-error
+                      ;; TODO: parse-js (in git master) now exports
+                      ;; the correct symbol. When this fix is pushed
+                      ;; to Quicklisp dist, stop using the internal
+                      ;; symbol here.
                       (let ((line (parse-js:js-parse-error-line c))
                             (column (parse-js::js-parse-error-char c)))
                         (when (and (= line eof-line) (= eof-column column))
