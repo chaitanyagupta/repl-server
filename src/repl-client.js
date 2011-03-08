@@ -1,6 +1,6 @@
 var ReplClient = {};
 
-ReplClient.version = "0.4.1";
+ReplClient.version = "0.5.0";
 
 var _, __, ___;
 var _$, _$$, _$$$;
