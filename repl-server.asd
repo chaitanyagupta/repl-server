@@ -5,5 +5,6 @@
   :components ((:module lib
                         :components ((:file "termcolor")))
                (:module src
+                        :serial t
                         :components ((:file "package")
                                      (:file "repl-server")))))
