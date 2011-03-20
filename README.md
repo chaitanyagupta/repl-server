@@ -28,7 +28,10 @@ Features include:
   values
 * Load javascript code from local files using the `//load` command
 
-The features section below explain some of these in more detail.
+The features section below explains some of these in more
+detail. There's also a screenshot:
+
+![repl-server screenshot](http://i.imgur.com/obKwl.png)
 
 Download
 ========
