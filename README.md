@@ -114,9 +114,9 @@ Now, start the javascript REPL:
 Installing the javascript client
 --------------------------------
 
-Copy `repl-client.js` into your web/javascript application. After it
-is loaded, you can start the ReplClient by passing it the URL of your
-REPL server:
+Copy `src/repl-client.js` into your web/javascript application. After
+it is loaded, you can start the ReplClient by passing it the URL of
+your REPL server:
 
     ReplClient.run('http://localhost:8000');
 
