@@ -71,12 +71,17 @@ directory and run the following command:
 
     $ sbcl --load example-launch.lisp
 
-Clozure CL also supports a --load option. To run CCL, run:
+To load Clozure CL, run:
 
     $ ccl --load example-launch.lisp
 
-If everything goes well, you should see a `REPL>` prompt on your
-terminal.
+For the equivalent of `--load` in another CL runtime, check its
+manual.
+
+The first time you do this, Quicklisp will ask your permission to
+download various Common Lisp libraries which are required to run
+repl-server. If everything goes well, you should see a `REPL>` prompt
+on your terminal.
 
 Here's what you should do in case you didn't use `example-launch.lisp`.
 
